@@ -1,6 +1,22 @@
 import visdom
 import pickle
 import argparse
+from visdom_logger.logger import ChartTypes, ChartData
+
+
+def load(filename, port):
+    vis = visdom.Visdom(port=port)
+
+    with open(filename, 'rb') as f:
+        loaded = pickle.load(f)
+
+    for name, (x, y, other_data, type) in loaded.items():
+        if type == ChartTypes.scalar:
+            vis.line(y, x, opts={'legend': [name]})
+        elif type == ChartTypes.scalars:
+            vis.line(y, x,  opts={'legend': name.split('$')})
+        elif type == ChartTypes.image:
+            vis.images(other_data, opts={'legend': [name]})
 
 
 if __name__ == '__main__':
@@ -9,10 +25,5 @@ if __name__ == '__main__':
     parser.add_argument('-port', help='Visdom port', default=8097)
 
     args = parser.parse_args()
-    vis = visdom.Visdom(port=args.port)
 
-    with open(args.filename, 'rb') as f:
-        loaded = pickle.load(f)
-
-    for name, (x, y) in loaded.items():
-        vis.line(y, x,  opts={'legend': [name]})
+    load(args.filename, args.port)

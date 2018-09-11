@@ -2,69 +2,84 @@ import visdom
 import torch
 from collections import defaultdict
 import pickle
-import argparse
+from typing import Dict
+from enum import Enum
+
+
+class ChartTypes(Enum):
+    scalar = 1,
+    scalars = 2,
+    image = 3
+
+
+class ChartData:
+    def __init__(self):
+        self.window = None
+        self.type = None
+        self.x_list = []
+        self.y_list = []
+        self.other_data = []
 
 
 class VisdomLogger:
     def __init__(self, port):
         self.vis = visdom.Visdom(port=port)
-        self.windows = defaultdict(lambda: (None, None, None))
+        self.windows: Dict[str, ChartData] = defaultdict(lambda: ChartData())
 
     def scalar(self, name, x, y):
-        win, x_list, y_list = self.windows[name]
+        data = self.windows[name]
 
-        update = None if win is None else 'append'
-        x_list = x_list or []
-        y_list = y_list or []
+        update = None if data.window is None else 'append'
 
         win = self.vis.line(torch.Tensor([y]), torch.Tensor([x]),
-                            win=win, update=update, opts={'legend': [name]})
+                            win=data.window, update=update, opts={'legend': [name]})
 
-        x_list.append(x)
-        y_list.append(y)
+        data.x_list.append(x)
+        data.y_list.append(y)
 
-        self.windows[name] = (win, x_list, y_list)
+        # Update the window
+        data.window = win
+        data.type = ChartTypes.scalar
 
     def scalars(self, list_of_names, x, list_of_ys):
         name = '$'.join(list_of_names)
 
-        win, x_list, y_list = self.windows[name]
+        data = self.windows[name]
 
-        update = None if win is None else 'append'
+        update = None if data.window is None else 'append'
         list_of_xs = [x] * len(list_of_ys)
         win = self.vis.line(torch.Tensor([list_of_ys]), torch.Tensor([list_of_xs]),
-                            win=win, update=update, opts={'legend': list_of_names})
+                            win=data.window, update=update, opts={'legend': list_of_names})
 
-        self.windows[name] = (win, x_list, y_list)
+        data.x_list.append(x)
+        data.y_list.append(list_of_ys)
+
+        # Update the window
+        data.window = win
+        data.type = ChartTypes.scalars
 
     def images(self, name, images, mean_std=None):
-        win, _, _ = self.windows[name]
+        data = self.windows[name]
 
-        win = self.vis.images(images if mean_std is None else
-                              images * torch.Tensor(mean_std[0]) + torch.Tensor(mean_std[1]),
-                              win=win, opts={'legend': [name]})
+        if mean_std is not None:
+            images = images * torch.Tensor(mean_std[0]) + torch.Tensor(mean_std[1])
 
-        self.windows[name] = (win, None, None)
+        win = self.vis.images(images, win=data.window, opts={'legend': [name]})
+
+        # Update the window
+        data.window = win
+        data.other_data = images
+        data.type = ChartTypes.image
 
     def reset_windows(self):
         self.windows.clear()
 
     def save(self, filename):
-        to_save = {name: (torch.tensor(x_list, dtype=torch.float), torch.tensor(y_list, dtype=torch.float)) for (name, (_, x_list, y_list)) in self.windows.items()}
+        to_save = {}
+        for (name, data) in self.windows.items():
+            to_save[name] = (torch.tensor(data.x_list, dtype=torch.float),
+                             torch.tensor(data.y_list, dtype=torch.float),
+                             torch.tensor(data.other_data, dtype=torch.float),
+                             data.type)
         with open(filename, 'wb') as f:
             pickle.dump(to_save, f)
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Load visdom plots')
-    parser.add_argument('filename', help='Filename with saved plots', required=True)
-    parser.add_argument('-port', help='Visdom port', default=8097)
-
-    args = parser.parse_args()
-    vis = visdom.Visdom(port=port)
-
-    with open(args.filename, 'rb') as f:
-        loaded = pickle.load(f)
-
-    for name, (x, y) in loaded.items():
-        vis.line(y, x,  opts={'legend': [name]})
