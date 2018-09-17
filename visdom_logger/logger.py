@@ -2,7 +2,6 @@ import visdom
 import torch
 from collections import defaultdict
 import pickle
-from typing import Dict
 from enum import Enum
 
 
@@ -24,7 +23,7 @@ class ChartData:
 class VisdomLogger:
     def __init__(self, port):
         self.vis = visdom.Visdom(port=port)
-        self.windows: Dict[str, ChartData] = defaultdict(lambda: ChartData())
+        self.windows = defaultdict(lambda: ChartData())
 
     def scalar(self, name, x, y):
         data = self.windows[name]
