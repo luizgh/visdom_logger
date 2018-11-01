@@ -7,7 +7,7 @@ requirements = [
 
 setup(
     name='visdom_logger',
-    version=0.1,
+    version="0.1",
     description='Visdom logger',
     author='Luiz Gustavo Hafemann',
     author_email='luiz.gh@mailbox.org',
