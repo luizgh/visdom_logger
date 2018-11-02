@@ -30,7 +30,7 @@ for i in range(100): # Training iterations
     logger.scalars(['loss', 'acc'], i, [loss, acc])
     
 # Also display images
-imgs = np.random.random((10, 3, 25, 25)) # 5 images of 25x25x3
+imgs = np.random.random((10, 3, 25, 25)) # 10 images of size 25x25x3
 logger.images('images', imgs)
 
 # Lastly, you can also save all plots to a file
