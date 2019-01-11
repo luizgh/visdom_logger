@@ -25,13 +25,13 @@ class VisdomLogger:
         self.vis = visdom.Visdom(port=port)
         self.windows = defaultdict(lambda: ChartData())
 
-    def scalar(self, name, x, y):
+    def scalar(self, name, x, y, title=""):
         data = self.windows[name]
 
         update = None if data.window is None else 'append'
 
         win = self.vis.line(torch.Tensor([y]), torch.Tensor([x]),
-                            win=data.window, update=update, opts={'legend': [name]})
+                            win=data.window, update=update, opts={'legend': [name], 'title': title})
 
         data.x_list.append(x)
         data.y_list.append(y)
@@ -40,7 +40,7 @@ class VisdomLogger:
         data.window = win
         data.type = ChartTypes.scalar
 
-    def scalars(self, list_of_names, x, list_of_ys):
+    def scalars(self, list_of_names, x, list_of_ys, title=""):
         name = '$'.join(list_of_names)
 
         data = self.windows[name]
@@ -48,7 +48,7 @@ class VisdomLogger:
         update = None if data.window is None else 'append'
         list_of_xs = [x] * len(list_of_ys)
         win = self.vis.line(torch.Tensor([list_of_ys]), torch.Tensor([list_of_xs]),
-                            win=data.window, update=update, opts={'legend': list_of_names})
+                win=data.window, update=update, opts={'legend': list_of_names, 'title': title})
 
         data.x_list.append(x)
         data.y_list.append(list_of_ys)
@@ -57,13 +57,13 @@ class VisdomLogger:
         data.window = win
         data.type = ChartTypes.scalars
 
-    def images(self, name, images, mean_std=None):
+    def images(self, name, images, mean_std=None, title=""):
         data = self.windows[name]
 
         if mean_std is not None:
             images = images * torch.Tensor(mean_std[0]) + torch.Tensor(mean_std[1])
 
-        win = self.vis.images(images, win=data.window, opts={'legend': [name]})
+        win = self.vis.images(images, win=data.window, opts={'legend': [name], 'title': title})
 
         # Update the window
         data.window = win
